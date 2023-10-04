@@ -3,41 +3,63 @@ import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useEffect, useState } from 'react';
+import Loading from '../components/loadingComponent/Loading';
 
 const Test = () => {
-  const zipping = async () => {
-    try {
-      const zip = new JSZip();
-      const Pdf = new jsPDF({
-        orientation: 'l',
-        unit: 'pt',
-        format: 'A4',
-        compress: true,
-      });
+  const array = Array(50).fill(0);
+  const [loading, setLoading] = useState(false);
 
-      const array = Array(5).fill(0);
-      const wait = new Promise((resolve, reject) => {
-        array.forEach(async (e, i, a) => {
-          const input = document.getElementById('image');
-          const data = await html2canvas(input);
-          const image = data.toDataURL('image/png');
-           Pdf.addImage(image, 'PNG', 0, 0, data.width, data.height);
-          const blob = Pdf.output('blob');
-          zip.file(`${i}.pdf`, blob);
-          if (i === a.length - 1) resolve();
-        });
-      });
-
-      wait.then(() => zip.generateAsync({ type: 'blob' }).then((blob) => {
-          saveAs(blob, 'filename.zip');
-        }));
-    } catch (err) {
-      console.log(err);
+  useEffect(()=>{
+    if (loading) {
+        zipping();
     }
+  },[loading]);
+
+  const triggerZip = () =>{
+    setLoading(true);
   };
+
+  const zipping = () => {
+    const zip = new JSZip();
+    const Pdf = new jsPDF({
+      orientation: 'l',
+      unit: 'pt',
+      format: 'A4',
+      compress: true,
+    });
+
+    const wait = new Promise((resolve, reject) => {
+      const indexArray = [];
+      array.forEach((e, i, a) => {
+        const input = document.getElementById(`image${i}`);
+
+        html2canvas(input).then(async (data) =>{
+            const image = data.toDataURL('image/png');
+            Pdf.addImage(image, 'PNG', 0, 0, data.width, data.height);
+        });
+
+        const blob = Pdf.output('blob');
+        zip.file(`${i}.pdf`, blob);
+        indexArray.push(i);
+        if (indexArray.length === a.length) resolve();
+      });
+    });
+
+    wait.then(() => zip.generateAsync({ type: 'blob' }).then((blob) => {
+        saveAs(blob, 'filename.zip');
+        setLoading(false);
+      }));
+  };
+
   return (
-    <div onClick={zipping} id="image">
-      <img src="/images/logo-bri.png" />
+    <div>
+      {loading && <Loading />}
+      {array.map((e, i) => (
+        <div onClick={triggerZip} key={i} id={`image${i}`}>
+          <img src="/images/logo-bri.png" />
+        </div>
+      ))}
     </div>
   );
 };
